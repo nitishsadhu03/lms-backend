@@ -16,7 +16,7 @@ const teacherSchedule=require('./routes/teacherSchedulingRoute')
 const app = express();
 
 const corsOptions = {
-  origin: ["http://localhost:5173", "https://lms-client-3jaz.onrender.com/"],
+  origin: ["http://localhost:5173", "https://lms-client-3jaz.onrender.com/", "https://lms-frontend-three-jet.vercel.app/"],
   credentials: true
 };
 app.use(cors(corsOptions));
