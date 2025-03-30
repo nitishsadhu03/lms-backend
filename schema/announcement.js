@@ -12,9 +12,12 @@ const announcementSchema = new mongoose.Schema({
       message: "Invalid base64 image format.",
     },
   },
+  link: {
+    type: String,
+  },
   createdBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "Admin", // Ensure this matches the Admin model name
+    ref: "Admin",
     required: true,
   },
   createdAt: {

@@ -287,6 +287,72 @@ exports.createCourse = async (req, res) => {
   }
 };
 
+exports.editCourse = async (req, res) => {
+  const { id } = req.params;
+  const {
+    name,
+    numberOfSessions,
+    // teacher,
+    // students
+  } = req.body;
+
+  if (!name || !numberOfSessions) {
+    return res
+      .status(400)
+      .json({ message: "Name and number of sessions are required." });
+  }
+
+  try {
+    // Check if the course exists
+    const course = await Course.findById(id);
+    if (!course) {
+      return res.status(404).json({ message: "Course not found." });
+    }
+
+    // Check if the new name is already taken by another course
+    if (name !== course.name) {
+      const existingCourse = await Course.findOne({ name });
+      if (existingCourse) {
+        return res
+          .status(400)
+          .json({ message: "Another course with this name already exists." });
+      }
+    }
+
+    // Check if the teacher exists (if uncommented)
+    // if (teacher) {
+    //   const teacherExists = await Teacher.findById(teacher);
+    //   if (!teacherExists) {
+    //     return res.status(400).json({ message: 'Teacher does not exist.' });
+    //   }
+    // }
+
+    // Check if all students exist (if uncommented)
+    // if (students && students.length > 0) {
+    //   const studentCheck = await Student.find({ _id: { $in: students } });
+    //   if (studentCheck.length !== students.length) {
+    //     return res.status(400).json({ message: 'Some students do not exist.' });
+    //   }
+    // }
+
+    // Update the course
+    course.name = name;
+    course.numberOfSessions = numberOfSessions;
+    // if (teacher) course.teacher = teacher;
+    // if (students) course.students = students;
+
+    await course.save();
+
+    res
+      .status(200)
+      .json({ message: "Course updated successfully.", course });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error updating course.", error: error.message });
+  }
+};
+
 // Helper function to generate sessions for recurring classes
 const generateSessions = async (classData) => {
   const sessions = [];
@@ -512,10 +578,10 @@ exports.deleteClass = async (req, res) => {
     }
 
     // If it's a recurring class, delete associated batch and schedules
-    if (classToDelete.isRecurring) {
-      await Batch.findOneAndDelete({ batchId: classToDelete.batchId });
-      await Schedule.deleteMany({ batchId: classToDelete.batchId });
-    }
+    // if (classToDelete.isRecurring) {
+    //   await Batch.findOneAndDelete({ batchId: classToDelete.batchId });
+    //   await Schedule.deleteMany({ batchId: classToDelete.batchId });
+    // }
 
     await Class.findByIdAndDelete(id);
 
@@ -983,6 +1049,83 @@ exports.updateClassOrSessionByAdmin = async (req, res) => {
     res.status(500).json({
       message: "Error updating class/session by admin.",
       error: error.message,
+    });
+  }
+};
+
+
+// Admin resolves a dispute for a class or session
+exports.resolveDisputeForClassOrSession = async (req, res) => {
+  const { classId, sessionId, remarks } = req.body;
+  const adminId = req.user._id; // Assuming admin ID comes from auth middleware
+
+  // Validate required fields
+  if (!remarks) {
+    return res.status(400).json({ message: "Resolution remarks are required." });
+  }
+
+  try {
+    if (sessionId) {
+      // Resolve dispute for a session
+      const session = await Session.findById(sessionId);
+      if (!session) {
+        return res.status(404).json({ message: "Session not found." });
+      }
+
+      // Check if dispute exists
+      if (!session.dispute || !session.dispute.reason) {
+        return res.status(400).json({ message: "No dispute exists for this session." });
+      }
+
+      // Check if already resolved
+      if (session.dispute.isResolved) {
+        return res.status(400).json({ message: "Dispute is already resolved." });
+      }
+
+      // Resolve the dispute
+      session.dispute.isResolved = true;
+      session.dispute.remarks = remarks;
+      // You might want to add resolvedAt timestamp here if needed
+
+      await session.save();
+
+      res.status(200).json({
+        message: "Session dispute resolved successfully.",
+        session
+      });
+    } else {
+      // Resolve dispute for a class
+      const singleClass = await Class.findById(classId);
+      if (!singleClass) {
+        return res.status(404).json({ message: "Class not found." });
+      }
+
+      // Check if dispute exists
+      if (!singleClass.dispute || !singleClass.dispute.reason) {
+        return res.status(400).json({ message: "No dispute exists for this class." });
+      }
+
+      // Check if already resolved
+      if (singleClass.dispute.isResolved) {
+        return res.status(400).json({ message: "Dispute is already resolved." });
+      }
+
+      // Resolve the dispute
+      singleClass.dispute.isResolved = true;
+      singleClass.dispute.remarks = remarks;
+      // You might want to add resolvedAt timestamp here if needed
+
+      await singleClass.save();
+
+      res.status(200).json({
+        message: "Class dispute resolved successfully.",
+        class: singleClass
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      message: "Error resolving dispute for class/session.",
+      error: error.message
     });
   }
 };
@@ -1668,7 +1811,7 @@ exports.deleteClassRecording = async (req, res) => {
 
 //create announcement
 exports.createAnnouncement = async (req, res) => {
-  const { image } = req.body;
+  const { image, link } = req.body;
 
   // Validate base64 image
   if (!validateBase64Image(image)) {
@@ -1681,6 +1824,7 @@ exports.createAnnouncement = async (req, res) => {
   try {
     const newAnnouncement = new Announcement({
       image,
+      link: link || null,
       createdBy: req.user._id, // Admin ID from authenticated admin
     });
 

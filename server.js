@@ -16,7 +16,7 @@ const teacherSchedule=require('./routes/teacherSchedulingRoute')
 const app = express();
 
 const corsOptions = {
-  origin: "https://lms-frontend-three-jet.vercel.app",
+  origin: ["https://lms-frontend-three-jet.vercel.app", "http://localhost:5173"],
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true,

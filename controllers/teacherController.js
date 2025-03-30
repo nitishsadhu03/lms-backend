@@ -459,3 +459,62 @@ exports.updateClassOrSessionByTeacher = async (req, res) => {
     });
   }
 };
+
+// Teacher raises dispute
+exports.raiseDisputeForClassOrSession = async (req, res) => {
+  const { classId, sessionId, reason } = req.body;
+  const teacherId = req.user._id; // Assuming teacher ID comes from auth middleware
+
+  // Validate required fields
+  if (!reason) {
+    return res.status(400).json({ message: "Dispute reason is required." });
+  }
+
+  try {
+    if (sessionId) {
+      // Raise dispute for a session
+      const session = await Session.findById(sessionId);
+      if (!session) {
+        return res.status(404).json({ message: "Session not found." });
+      }
+
+      // Create new dispute
+      session.dispute = {
+        reason,
+        isResolved: false,
+      };
+
+      await session.save();
+
+      res.status(200).json({
+        message: "Session dispute raised successfully.",
+        session
+      });
+    } else {
+      // Raise dispute for a class
+      const singleClass = await Class.findById(classId);
+      if (!singleClass) {
+        return res.status(404).json({ message: "Class not found." });
+      }
+
+      // Create new dispute
+      singleClass.dispute = {
+        reason,
+        isResolved: false,
+        raisedAt: new Date()
+      };
+
+      await singleClass.save();
+
+      res.status(200).json({
+        message: "Class dispute raised successfully.",
+        class: singleClass
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      message: "Error raising dispute for class/session.",
+      error: error.message
+    });
+  }
+};

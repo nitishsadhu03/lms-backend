@@ -5,6 +5,7 @@ const authMiddleware = require('../middlewares/authMiddleware');
 const { assignResource } = require("../controllers/teacherController");
 const { getCertificates } = require('../controllers/teacherController');
 const { updateClassOrSessionByTeacher } = require('../controllers/teacherController');
+const { raiseDisputeForClassOrSession } = require('../controllers/teacherController');
 
 // Route to assign homework to student
 // router.post('/assign-homework', authMiddleware.teacherCheck, assignHomework);
@@ -19,5 +20,8 @@ router.get('/certificates', authMiddleware.studentCheck, getCertificates);
 
 // Teacher updates a class or session
 router.post("/update-by-teacher", authMiddleware.teacherCheck, updateClassOrSessionByTeacher);
+
+// Teacher raises a dispute for a class or session
+router.post("/raise-dispute-by-teacher", authMiddleware.teacherCheck, raiseDisputeForClassOrSession);
 
 module.exports = router;

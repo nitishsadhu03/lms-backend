@@ -3,6 +3,7 @@ const router = express.Router();
 const adminActionsController = require("../controllers/adminActionsController");
 const {
   createCourse,
+  editCourse,
   updateAdminProfile,
   deleteAdminProfile,
   createClass,
@@ -23,7 +24,8 @@ const {
   createAnnouncement,
   updateAnnouncement,
   deleteAnnouncement,
-  updateClassOrSessionByAdmin
+  updateClassOrSessionByAdmin,
+  resolveDisputeForClassOrSession
 } = require("../controllers/adminActionsController");
 const { authenticateAdmin } = require("../middlewares/authMiddleware");
 
@@ -41,6 +43,8 @@ router.post("/create-admin", adminActionsController.createAdmin);
 
 // Route to create a course
 router.post("/create-course", authenticateAdmin, createCourse);
+
+router.put("/edit-course/:id", editCourse);
 
 // Create a new class - Only accessible by admin
 router.post("/create-class", authenticateAdmin, createClass);
@@ -127,6 +131,9 @@ router.delete("/delete-announcement/:announcementId", authenticateAdmin, deleteA
 
 // Admin updates a class or session
 router.post("/update-by-admin", authenticateAdmin, updateClassOrSessionByAdmin);
+
+// Admin resolves a dispute for a class or session
+router.post("/resolve-dispute-by-admin", authenticateAdmin, resolveDisputeForClassOrSession);
 
 
 module.exports = router;
