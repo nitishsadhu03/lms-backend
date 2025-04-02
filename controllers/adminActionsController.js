@@ -343,9 +343,7 @@ exports.editCourse = async (req, res) => {
 
     await course.save();
 
-    res
-      .status(200)
-      .json({ message: "Course updated successfully.", course });
+    res.status(200).json({ message: "Course updated successfully.", course });
   } catch (error) {
     res
       .status(500)
@@ -938,7 +936,6 @@ const areAllSessionsPaid = async (classId) => {
   return sessions.every((session) => session.adminUpdates.type === "paid");
 };
 
-
 // Admin updates a class or session
 exports.updateClassOrSessionByAdmin = async (req, res) => {
   const { classId, sessionId, amount, type, joinTime, penalty } = req.body;
@@ -982,32 +979,40 @@ exports.updateClassOrSessionByAdmin = async (req, res) => {
         // Find the student enrolled in this class
         const studentId = classData.studentIds[0]; // Assuming one student per class
         const student = await Student.findById(studentId);
-        if (!student) {
-          return res.status(404).json({ message: "Student not found." });
+        if (student) {
+          // Only proceed if student exists
+          // Check if student is enrolled in the course associated with this class
+          const isEnrolled = student.courseEnrolled.some(
+            (course) => course.toString() === classData.courseId.toString()
+          );
+
+          if (isEnrolled) {
+            // Generate a unique certificate ID
+            const certificateNumber = `CERT-${Date.now()}-${studentId
+              .toString()
+              .slice(-4)}-${Math.floor(Math.random() * 1000)}`;
+
+            // Create the certificate
+            const certificate = new Certificate({
+              studentId,
+              courseId: classData.courseId,
+              certificateNumber,
+              completionPercentage: 100,
+            });
+
+            await certificate.save();
+
+            // Update the student's certificates array
+            student.certificates.push({
+              courseId: classData.courseId,
+              certificateUrl: `https://example.com/certificates/${certificateNumber}`,
+              issuedAt: Date.now(),
+              isEligible: true,
+            });
+
+            await student.save();
+          }
         }
-
-        // Generate a unique certificate ID
-        const certificateNumber = `CERT-${Date.now()}-${studentId}`;
-
-        // Create the certificate
-        const certificate = new Certificate({
-          studentId,
-          courseId: classData.courseId,
-          certificateNumber, // Include the unique certificate number
-          completionPercentage: 100, // Since all sessions are completed
-        });
-
-        await certificate.save();
-
-        // Update the student's certificates array
-        student.certificates.push({
-          courseId: classData.courseId,
-          certificateUrl: `https://example.com/certificates/${certificateNumber}`, // Replace with actual URL logic
-          issuedAt: Date.now(),
-          isEligible: true,
-        });
-
-        await student.save();
       }
 
       res.status(200).json({
@@ -1053,15 +1058,22 @@ exports.updateClassOrSessionByAdmin = async (req, res) => {
   }
 };
 
-
 // Admin resolves a dispute for a class or session
 exports.resolveDisputeForClassOrSession = async (req, res) => {
-  const { classId, sessionId, remarks } = req.body;
+  const { classId, sessionId, remarks, status, action } = req.body;
   const adminId = req.user._id; // Assuming admin ID comes from auth middleware
 
   // Validate required fields
   if (!remarks) {
-    return res.status(400).json({ message: "Resolution remarks are required." });
+    return res
+      .status(400)
+      .json({ message: "Resolution remarks are required." });
+  }
+
+  if (!status || !["resolved", "rejected"].includes(status)) {
+    return res
+      .status(400)
+      .json({ message: "Valid status (resolved/rejected) is required." });
   }
 
   try {
@@ -1074,24 +1086,29 @@ exports.resolveDisputeForClassOrSession = async (req, res) => {
 
       // Check if dispute exists
       if (!session.dispute || !session.dispute.reason) {
-        return res.status(400).json({ message: "No dispute exists for this session." });
+        return res
+          .status(400)
+          .json({ message: "No dispute exists for this session." });
       }
 
-      // Check if already resolved
-      if (session.dispute.isResolved) {
-        return res.status(400).json({ message: "Dispute is already resolved." });
+      if (session.dispute.status !== "pending") {
+        return res.status(400).json({
+          message: `Dispute is already ${session.dispute.status}.`,
+        });
       }
 
       // Resolve the dispute
-      session.dispute.isResolved = true;
+      session.dispute.status = status;
       session.dispute.remarks = remarks;
       // You might want to add resolvedAt timestamp here if needed
 
       await session.save();
 
       res.status(200).json({
-        message: "Session dispute resolved successfully.",
-        session
+        message: `Session dispute ${
+          status === "resolved" ? "resolved" : "rejected"
+        } successfully.`,
+        session,
       });
     } else {
       // Resolve dispute for a class
@@ -1102,30 +1119,36 @@ exports.resolveDisputeForClassOrSession = async (req, res) => {
 
       // Check if dispute exists
       if (!singleClass.dispute || !singleClass.dispute.reason) {
-        return res.status(400).json({ message: "No dispute exists for this class." });
+        return res
+          .status(400)
+          .json({ message: "No dispute exists for this class." });
       }
 
-      // Check if already resolved
-      if (singleClass.dispute.isResolved) {
-        return res.status(400).json({ message: "Dispute is already resolved." });
+      // Check if already resolved/rejected
+      if (singleClass.dispute.status !== "pending") {
+        return res.status(400).json({
+          message: `Dispute is already ${singleClass.dispute.status}.`,
+        });
       }
 
       // Resolve the dispute
-      singleClass.dispute.isResolved = true;
+      singleClass.dispute.status = status;
       singleClass.dispute.remarks = remarks;
       // You might want to add resolvedAt timestamp here if needed
 
       await singleClass.save();
 
       res.status(200).json({
-        message: "Class dispute resolved successfully.",
-        class: singleClass
+        message: `Class dispute ${
+          status === "resolved" ? "resolved" : "rejected"
+        } successfully.`,
+        class: singleClass,
       });
     }
   } catch (error) {
     res.status(500).json({
       message: "Error resolving dispute for class/session.",
-      error: error.message
+      error: error.message,
     });
   }
 };

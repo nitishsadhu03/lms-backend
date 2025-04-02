@@ -481,7 +481,7 @@ exports.raiseDisputeForClassOrSession = async (req, res) => {
       // Create new dispute
       session.dispute = {
         reason,
-        isResolved: false,
+        status: "pending",
       };
 
       await session.save();
@@ -500,8 +500,7 @@ exports.raiseDisputeForClassOrSession = async (req, res) => {
       // Create new dispute
       singleClass.dispute = {
         reason,
-        isResolved: false,
-        raisedAt: new Date()
+        status: "pending",
       };
 
       await singleClass.save();

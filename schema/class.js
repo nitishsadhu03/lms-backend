@@ -232,7 +232,10 @@ const classSchema = new mongoose.Schema({
   },
   dispute: {
     reason: { type: String }, // Reason for dispute (filled by teacher)
-    isResolved: { type: Boolean, default: false }, // Resolution status
+    status: { 
+      type: String,
+      enum: ["pending", "resolved", "rejected"],
+    }, 
     remarks: { type: String }, // Admin's remarks when resolving
   },
 });
